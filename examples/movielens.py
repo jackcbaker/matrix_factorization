@@ -4,6 +4,7 @@
 
 
 import os
+import defaults
 import urllib
 import zipfile
 import numpy as np
@@ -16,14 +17,14 @@ def load_dataset():
 
     Outputs: movielens directory to ../data
     """
-    if not os.path.exists('../data'):
-        os.makedirs('../data')
-    urllib.urlretrieve ("http://files.grouplens.org/datasets/movielens/ml-100k.zip", 
-            "../data/movielens.zip")
-    zip_ref = zipfile.ZipFile('../data/movielens.zip', 'r')
-    zip_ref.extractall('../data/')
+    if not os.path.exists( defaults.data_dir ):
+        os.makedirs( defaults.data_dir )
+    urllib.urlretrieve("http://files.grouplens.org/datasets/movielens/ml-100k.zip",
+            defaults.data_dir + "movielens.zip")
+    zip_ref = zipfile.ZipFile( defaults.data_dir + 'movielens.zip', 'r')
+    zip_ref.extractall( defaults.data_dir )
     zip_ref.close()
-    os.remove( '../data/movielens.zip' )
+    os.remove( defaults.data_dir + 'movielens.zip' )
 
 
 def movielens():
@@ -32,16 +33,19 @@ def movielens():
     """
     # Load data, download if necessary
     try:
-        train = np.loadtxt('../data/ml-100k/u1.base', dtype = int)
+        train = np.loadtxt( defaults.data_dir + 'ml-100k/u1.base', dtype = int)
+        test = np.loadtxt( defaults.data_dir + 'ml-100k/u1.test', dtype = int)
     except IOError:
         print "Downloading movielens dataset, make sure you have a valid connection..."
         load_dataset()
-    test = np.loadtxt('../data/ml-100k/u1.test', dtype = int)
+        train = np.loadtxt( defaults.data_dir + 'ml-100k/u1.base', dtype = int)
+        test = np.loadtxt( defaults.data_dir + 'ml-100k/u1.test', dtype = int)
     # Remove last nuisance row
     train = train[:,:3]
     test = test[:,:3]
     # Initialise model
     pmf = MatrixFactorization( train, test, 10 )
+
 
 if __name__ == '__main__':
     movielens()
