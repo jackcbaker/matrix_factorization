@@ -11,24 +11,26 @@ class StochasticGradientDescent:
         2. http://www.ics.uci.edu/~welling/publications/papers/kdd15_dbmf_v0.07_submitted_arXiv.pdf
     """
     
-    def __init__(self,pmf,stepsize):
+    def __init__(self,pmf,stepsize,minibatch_size,window_size):
         """
         Initialize the container for SGD
 
         Parameters:
         pmf - matrix factorization object see matrix_factorization.py
         stepsize - the stepsize to perform SGD at
+        minibatch_size - size of the minibatch used at each iteration
+        window_size - window size used in ADADELTA
         """
         self.stepsize = stepsize
 
         # Set the minibatch size
-        self.minibatch_size = 4000
+        self.minibatch_size = minibatch_size
         
         # Hold number of iterations so far
         self.iter = 1
 
         # Controls ADADELTA fixed window
-        self.ada = 0.01
+        self.ada = 1 / float( window_size )
 
         # Containers for ADADELTA G matrices
         self.G_U = np.ones( pmf.U.shape )

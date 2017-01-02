@@ -100,7 +100,7 @@ class MatrixFactorization:
         return dlogU, dlogV, dloga, dlogb
 
 
-    def fit(self,stepsize,n_iters):
+    def fit(self,stepsize,n_iters=10**4,minibatch_size=4000,window_size=100):
         """
         Fit probabilistic matrix factorization model using train and test set.
 
@@ -109,8 +109,10 @@ class MatrixFactorization:
         Parameters:
         stepsize - stepsize to use in stochastic gradient descent
         n_iters - number of iterations of stochastic gradient descent
+        minibatch_size - minibatch size in stochastic gradient descent (optional)
+        window_size - size of window used in ADADELTA (optional)
         """
-        sgd = StochasticGradientDescent(self,stepsize)
+        sgd = StochasticGradientDescent(self,stepsize,minibatch_size,window_size)
         for i in range(n_iters):
             # Every so often output RMSE on test set and progress, update hyperparameters
             if i % 10 == 0:
