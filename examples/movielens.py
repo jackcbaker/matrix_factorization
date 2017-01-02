@@ -45,7 +45,7 @@ def movielens():
     test = test[:,:3]
     # Initialise model
     pmf = MatrixFactorization( train, test, 10 )
-    pmf.fit(0.01)
+    pmf.fit(0.005,10**3)
 
 
 if __name__ == '__main__':

@@ -28,7 +28,18 @@ class MatrixFactorization:
         self.n_users = np.max( train[:,0] )
         self.n_objects = np.max( train[:,1] )
         self.d = d
-        self.N = self.train.shape[1]
+        self.N = self.train.shape[0]
+        self.test_size = self.test.shape[0]
+
+        # Check train and test sets start from 0
+        if np.amin( self.train[:,0] ) == 1:
+            self.train[:,0] -= 1
+        if np.amin( self.train[:,1] ) == 1:
+            self.train[:,1] -= 1
+        if np.amin( self.test[:,0] ) == 1:
+            self.test[:,0] -= 1
+        if np.amin( self.test[:,1] ) == 1:
+            self.test[:,1] -= 1
 
         # Initialize level parameters
         self.U = np.ones( ( self.d, self.n_users ) )
@@ -53,7 +64,7 @@ class MatrixFactorization:
         Calculate gradient of the log likelihood wrt each of the parameters using a minibatch of data
 
         Parameters:
-        sgd - a stochastic gradient descent object, used to specify the minibatch
+        sgd - a stochastic gradient descent object, used to specify the minibatch (see sgd.py)
 
         Returns:
         dlogU - gradient of the log likelihood wrt U
@@ -71,13 +82,13 @@ class MatrixFactorization:
             ( user, item, rating ) = self.train[i,:]
 
             # Calculate gradient of the log density at x, update each dlog* accordingly
-            dlogU[:,user] += self.τ * ( rating - np.dot( self.U[:,user], self.V[:,item] ) -
+            dlogU[:,user] += self.tau * ( rating - np.dot( self.U[:,user], self.V[:,item] ) -
                     self.a[user] - self.b[item] )*self.V[:,item]
-            dlogV[:,item] += self.τ * ( rating - np.dot( self.U[:,user], self.V[:,item] ) - 
+            dlogV[:,item] += self.tau * ( rating - np.dot( self.U[:,user], self.V[:,item] ) - 
                 self.a[user] - self.b[item] )*self.U[:,user]
-            dloga[user] += self.τ * ( rating - np.dot( self.U[:,user], self.V[:,item] ) - 
+            dloga[user] += self.tau * ( rating - np.dot( self.U[:,user], self.V[:,item] ) - 
                 self.a[user] - self.b[item] )
-            dlogb[item] += self.τ * ( rating - np.dot( self.U[:,user], self.V[:,item] ) - 
+            dlogb[item] += self.tau * ( rating - np.dot( self.U[:,user], self.V[:,item] ) - 
                 self.a[user] - self.b[item] )
 
         # Adjust log density gradients so they're unbiased
@@ -89,10 +100,52 @@ class MatrixFactorization:
         return dlogU, dlogV, dloga, dlogb
 
 
-    def fit(self,stepsize):
+    def fit(self,stepsize,n_iters):
         """
-        Fit the Matrix Factorization algorithm using stochastic gradient descent
+        Fit probabilistic matrix factorization model using train and test set.
 
-        Sensitivity to the stepsize is reduced using ADADELTA (see reference 2)
+        Uses stochastic gradient descent algorithm
+
+        Parameters:
+        stepsize - stepsize to use in stochastic gradient descent
+        n_iters - number of iterations of stochastic gradient descent
         """
         sgd = StochasticGradientDescent(self,stepsize)
+        for i in range(n_iters):
+            # Every so often output RMSE on test set and progress, update hyperparameters
+            if i % 10 == 0:
+                print "{0}\t{1}".format( i, self.rmse() )
+                self.update_hyperparams()
+            sgd.update(self)
+
+
+    def update_hyperparams(self):
+        """Update hyperparameters using Gibbs sampling"""
+        for d in range(self.d):
+            # Update U
+            shape = self.alpha + self.n_users / 2.0
+            rate = self.beta + 1/2.0 * np.square( self.U[d,:] ).sum()
+            self.lambda_U[d] = np.random.gamma( shape, 1 / rate )
+            # Update V
+            shape = self.alpha + self.n_objects / 2.0
+            rate = self.beta + 1/2.0 * np.square( self.V[d,:] ).sum()
+            self.lambda_V[d] = np.random.gamma( shape, 1 / rate )
+        # Update a
+        shape = self.alpha + self.n_users / 2.0
+        rate = self.beta + 1/2.0 * np.square( self.a ).sum()
+        self.lambda_a = np.random.gamma( shape, 1 / rate )
+        # Update b
+        shape = self.alpha + self.n_objects / 2.0
+        rate = self.beta + 1/2.0 * np.square( self.a ).sum()
+        self.lambda_b = np.random.gamma( shape, 1 / rate )
+
+
+    def rmse(self):
+        """Calculate the RMSE on the test set, used to check convergence"""
+        rmse = 0
+        for i in range(self.test_size):
+            ( user, item, rating ) = self.test[i,:]
+            rmse += ( rating - np.dot( self.U[:,user], self.V[:,item] - 
+                      self.a[user] - self.b[item] ) )**2
+        rmse = np.sqrt( rmse / self.test_size )
+        return rmse
